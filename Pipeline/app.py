@@ -19,19 +19,20 @@ import matplotlib.cm as cm_lib
 
 warnings.filterwarnings("ignore")
 
-from flask import Flask, request, jsonify, render_template, redirect, url_for
+from flask import Flask, request, jsonify, render_template, redirect, url_for, send_file
 from PIL import Image
 import tensorflow as tf
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT_DIR   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 MODEL_NAME = "best_model.keras"
-MODEL_PATH = os.path.join(ROOT_DIR, "ai_trained_dataset", "model", MODEL_NAME)
-REPORT_PATH = os.path.join(ROOT_DIR, "ai_trained_dataset", "reports", "classification_report.txt")
-IMG_SIZE = (128, 128)
-CLASSES = ["Parasitized", "Uninfected"]
+MODEL_PATH = os.path.join(ROOT_DIR, "Dataset", "model", MODEL_NAME)
+REPORT_PATH = os.path.join(ROOT_DIR, "Dataset", "reports", "classification_report.txt")
+PLOTS_DIR  = os.path.join(ROOT_DIR, "Dataset", "plots")
+IMG_SIZE   = (128, 128)
+CLASSES    = ["Parasitized", "Uninfected"]
 
 app = Flask(__name__)
 
@@ -66,8 +67,8 @@ def parse_report(path):
                 parts = stripped.split()
                 if len(parts) >= 4:
                     metrics["macro_precision"] = parts[1]
-                    metrics["macro_recall"] = parts[2]
-                    metrics["macro_f1"] = parts[3]
+                    metrics["macro_recall"]    = parts[2]
+                    metrics["macro_f1"]        = parts[3]
             if stripped.startswith("Training time:"):
                 match = re.search(r"Training time:\s*([0-9.]+)", stripped)
                 if match:
@@ -80,11 +81,11 @@ def parse_report(path):
                 parts = stripped.split()
                 if len(parts) >= 5:
                     class_metrics.append({
-                        "label": parts[0],
+                        "label":     parts[0],
                         "precision": parts[1],
-                        "recall": parts[2],
-                        "f1_score": parts[3],
-                        "support": parts[4],
+                        "recall":    parts[2],
+                        "f1_score":  parts[3],
+                        "support":   parts[4],
                     })
     return metrics, class_metrics
 
@@ -105,23 +106,23 @@ def preprocess(pil_img):
     return arr, np.expand_dims(arr, 0)
 
 
-def make_gradcam(model, img_batch):
+def make_gradcam(mdl, img_batch):
     last_conv_name = None
-    last_conv_idx = None
-    for i, layer in enumerate(model.layers):
+    last_conv_idx  = None
+    for i, layer in enumerate(mdl.layers):
         if isinstance(layer, tf.keras.layers.Conv2D):
             last_conv_name = layer.name
-            last_conv_idx = i
+            last_conv_idx  = i
 
     if last_conv_name is None:
         return None
 
     try:
         conv_model = tf.keras.Model(
-            inputs=model.inputs,
-            outputs=model.get_layer(last_conv_name).output,
+            inputs=mdl.inputs,
+            outputs=mdl.get_layer(last_conv_name).output,
         )
-        remaining = model.layers[last_conv_idx + 1 :]
+        remaining = mdl.layers[last_conv_idx + 1:]
 
         with tf.GradientTape() as tape:
             conv_out = conv_model(img_batch, training=False)
@@ -135,7 +136,7 @@ def make_gradcam(model, img_batch):
         if grads is None:
             return None
 
-        pooled = tf.reduce_mean(grads, axis=(0, 1, 2))
+        pooled  = tf.reduce_mean(grads, axis=(0, 1, 2))
         heatmap = conv_out[0] @ pooled[..., tf.newaxis]
         heatmap = tf.squeeze(heatmap)
         heatmap = tf.nn.relu(heatmap)
@@ -164,14 +165,31 @@ def arr_to_b64(arr):
     return base64.b64encode(buf.read()).decode()
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ROUTES
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route("/plots/<filename>")
+def serve_plot(filename):
+    """Serve plot images from the Dataset/plots directory."""
+    path = os.path.join(PLOTS_DIR, filename)
+    if not os.path.exists(path):
+        return "Not found", 404
+    return send_file(path, mimetype="image/png")
+
+
 @app.route("/")
 def index():
+    confusion_exists = os.path.exists(os.path.join(PLOTS_DIR, "confusion_matrix.png"))
+    roc_exists       = os.path.exists(os.path.join(PLOTS_DIR, "roc_curve.png"))
     return render_template(
         "index.html",
         active_tab="home",
         metrics=model_metrics,
         class_metrics=class_metrics,
         model_name=MODEL_NAME,
+        confusion_exists=confusion_exists,
+        roc_exists=roc_exists,
     )
 
 
@@ -200,9 +218,9 @@ def result():
     prob = float(model.predict(img_batch, verbose=0)[0][0])
     pred_idx = int(prob >= 0.5)
     prediction = CLASSES[pred_idx]
-    confidence_value = prob if pred_idx == 1 else 1.0 - prob
+    confidence_value      = prob if pred_idx == 1 else 1.0 - prob
     probability_parasitized = 100.0 * (1.0 - prob)
-    probability_uninfected = 100.0 * prob
+    probability_uninfected  = 100.0 * prob
 
     heatmap = make_gradcam(model, img_batch)
     overlay = overlay_cam(img_arr, heatmap)
@@ -219,7 +237,7 @@ def result():
         confidence_pct=f"{confidence_value * 100:.1f}",
         probabilities=[
             {"label": "Parasitized", "percent": f"{probability_parasitized:.1f}", "color": "#ef4444"},
-            {"label": "Uninfected", "percent": f"{probability_uninfected:.1f}", "color": "#22c55e"},
+            {"label": "Uninfected",  "percent": f"{probability_uninfected:.1f}",  "color": "#22c55e"},
         ],
         raw_sigmoid=f"{prob:.6f}",
         original_b64=arr_to_b64(img_arr),
@@ -241,23 +259,17 @@ def predict():
 
     img_arr, img_batch = preprocess(pil_img)
     prob = float(model.predict(img_batch, verbose=0)[0][0])
-    pred_idx = int(prob >= 0.5)
+    pred_idx   = int(prob >= 0.5)
     prediction = CLASSES[pred_idx]
     confidence = prob if pred_idx == 1 else 1.0 - prob
-    heatmap = make_gradcam(model, img_batch)
-    overlay = overlay_cam(img_arr, heatmap)
 
-    return jsonify(
-        {
-            "prediction": prediction,
-            "confidence": round(confidence, 6),
-            "raw_sigmoid": round(prob, 6),
-            "prob_parasitized": round(1.0 - prob, 6),
-            "prob_uninfected": round(prob, 6),
-            "original_b64": arr_to_b64(img_arr),
-            "gradcam_b64": arr_to_b64(overlay),
-        }
-    )
+    return jsonify({
+        "prediction":       prediction,
+        "confidence":       round(confidence, 6),
+        "raw_sigmoid":      round(prob, 6),
+        "prob_parasitized": round(1.0 - prob, 6),
+        "prob_uninfected":  round(prob, 6),
+    })
 
 
 if __name__ == "__main__":

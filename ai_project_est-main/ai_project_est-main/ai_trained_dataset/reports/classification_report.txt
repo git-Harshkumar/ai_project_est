@@ -1,0 +1,18 @@
+MALARIA CELL CLASSIFICATION REPORT
+==================================================
+
+Best-model evaluation (validation set):
+  loss: 0.2584
+  compile_metrics: 0.9160
+
+              precision    recall  f1-score   support
+
+ Parasitized       0.98      0.85      0.91      2066
+  Uninfected       0.87      0.98      0.92      2066
+
+    accuracy                           0.92      4132
+   macro avg       0.93      0.92      0.92      4132
+weighted avg       0.93      0.92      0.92      4132
+
+Training time: 665.78 minutes
+Epochs run: 12

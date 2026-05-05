@@ -178,6 +178,18 @@ def serve_plot(filename):
     return send_file(path, mimetype="image/png")
 
 
+@app.route("/bg.png")
+def serve_bg():
+    """Serve the background image from the app root directory."""
+    root = os.path.dirname(os.path.abspath(__file__))
+    # Try both names in case the user renamed the file
+    for name in ("bg.png", "bg.png.png"):
+        path = os.path.join(root, name)
+        if os.path.exists(path):
+            return send_file(path, mimetype="image/png")
+    return "Not found", 404
+
+
 @app.route("/")
 def index():
     confusion_exists = os.path.exists(os.path.join(PLOTS_DIR, "confusion_matrix.png"))
@@ -274,7 +286,7 @@ def predict():
 
 if __name__ == "__main__":
     print("\n" + "=" * 55)
-    print("  🔬  Malaria Cell Classifier  —  Web Interface")
+    print("    Malaria Cell Classifier  —  Web Interface")
     print("  Open your browser at: http://localhost:5000")
     print("=" * 55 + "\n")
     app.run(host="0.0.0.0", port=5000, debug=False)

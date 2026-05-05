@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
-  <!-- Loading overlay shown while analysing -->
+
+  <!-- Loading Overlay -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-box">
       <div class="spinner"></div>
@@ -8,32 +9,68 @@
     </div>
   </div>
 
-  <section class="upload-panel upload-centered">
+  <!-- UPLOAD CARD -->
+  <div class="upload-card">
+
     {% if error_message %}
-      <div class="error-box">{{ error_message }}</div>
+      <div class="error-box">⚠️ {{ error_message }}</div>
     {% endif %}
-    <h2>Select a Cell Image</h2>
-    <p class="upload-subtitle">Choose a blood cell image for instant malaria detection.</p>
-    <form action="{{ url_for('result') }}" method="post" enctype="multipart/form-data" class="upload-form" id="uploadForm">
-      <label class="file-field" id="dropZone">
-        <span id="dropLabel"> Drag &amp; drop an image here, or click to select</span>
+
+    <!-- Heading -->
+    <h1 class="upload-heading">
+      Detect Malaria<br>
+      <span class="upload-heading-accent">with Precision</span>
+    </h1>
+
+    <!-- Subtitle -->
+    <p class="upload-desc">
+      Upload a blood cell microscopy image and our AI model
+      will analyze it instantly for malaria detection.
+    </p>
+
+    <!-- Drop Zone -->
+    <form action="{{ url_for('result') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+      <label class="drop-zone" id="dropZone">
+
+        <div class="drop-icon">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 16 12 12 8 16"></polyline>
+            <line x1="12" y1="12" x2="12" y2="21"></line>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+          </svg>
+        </div>
+
+        <div class="drop-text" id="dropLabel">
+          <p><strong>Drag &amp; drop</strong> an image here</p>
+          <p class="drop-browse">or click to browse</p>
+        </div>
+
         <input type="file" name="image" accept="image/*" required id="imageInput">
       </label>
-      <p class="field-hint">✓ Supported: PNG, JPG, JPEG, BMP, TIFF (Max 20MB)</p>
-      <p class="file-name" id="fileName" style="display:none;">Selected: <strong></strong></p>
+
+      <!-- Hint -->
+      <p class="drop-hint">
+        Supported formats: PNG, JPG, JPEG, BMP, TIFF &nbsp;·&nbsp; Max size: 20 MB
+      </p>
+
+      <p class="file-name" id="fileName" style="display:none;">
+        Selected: <strong id="fileNameText"></strong>
+      </p>
     </form>
-  </section>
+
+  </div><!-- /.upload-card -->
 
   <script>
     const dropZone   = document.getElementById("dropZone");
     const imageInput = document.getElementById("imageInput");
     const dropLabel  = document.getElementById("dropLabel");
     const fileName   = document.getElementById("fileName");
+    const fileNameTx = document.getElementById("fileNameText");
     const uploadForm = document.getElementById("uploadForm");
     const overlay    = document.getElementById("loadingOverlay");
 
     function submitForm() {
-      dropLabel.textContent = "⏳ Uploading…";
+      dropLabel.innerHTML = '<p>⏳ Uploading…</p>';
       overlay.classList.add("active");
       uploadForm.submit();
     }
@@ -41,38 +78,33 @@
     function updateLabel() {
       if (imageInput.files.length > 0) {
         const file = imageInput.files[0];
-        dropLabel.textContent = ` ${file.name} — starting analysis…`;
+        dropLabel.innerHTML = `<p><strong> ${file.name}</strong></p><p class="drop-browse">starting analysis…</p>`;
         fileName.style.display = "block";
-        fileName.querySelector("strong").textContent = file.name;
-        // Auto-submit after a short delay so the user sees the filename flash
-        setTimeout(submitForm, 400);
+        fileNameTx.textContent = file.name;
+        setTimeout(submitForm, 500);
       }
     }
 
-    ["dragenter", "dragover"].forEach((eventName) => {
-      dropZone.addEventListener(eventName, (event) => {
-        event.preventDefault();
-        event.stopPropagation();
+    ["dragenter", "dragover"].forEach(evt => {
+      dropZone.addEventListener(evt, e => {
+        e.preventDefault(); e.stopPropagation();
         dropZone.classList.add("drag-active");
       });
     });
 
-    ["dragleave", "drop"].forEach((eventName) => {
-      dropZone.addEventListener(eventName, (event) => {
-        event.preventDefault();
-        event.stopPropagation();
+    ["dragleave", "drop"].forEach(evt => {
+      dropZone.addEventListener(evt, e => {
+        e.preventDefault(); e.stopPropagation();
         dropZone.classList.remove("drag-active");
       });
     });
 
-    dropZone.addEventListener("drop", (event) => {
-      const files = event.dataTransfer.files;
-      if (files.length > 0) {
-        imageInput.files = files;
-        updateLabel();
-      }
+    dropZone.addEventListener("drop", e => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) { imageInput.files = files; updateLabel(); }
     });
 
     imageInput.addEventListener("change", updateLabel);
   </script>
+
 {% endblock %}

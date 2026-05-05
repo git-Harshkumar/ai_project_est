@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
+
+  <!-- STATS GRID -->
   <section class="stats-grid">
     <article class="metric-card">
       <span>Validation Accuracy</span>
@@ -23,9 +25,10 @@
     </article>
   </section>
 
+  <!-- MODEL EVALUATION PLOTS -->
   {% if confusion_exists or roc_exists %}
   <section class="plots-section">
-    <h3> Model Evaluation Plots</h3>
+    <h3>📈 Model Evaluation Plots</h3>
     <div class="plots-grid">
       {% if confusion_exists %}
       <article class="plot-card">
@@ -43,17 +46,15 @@
   </section>
   {% endif %}
 
+  <!-- CLASS LEVEL PERFORMANCE -->
   <section class="metric-panel">
-    <h3>Class-level Performance</h3>
+    <h3> Class-level Performance</h3>
     <div class="class-grid">
       {% for row in class_metrics %}
         <article class="class-card">
           <div class="class-label">
-            {% if row.label == 'Parasitized' %}
-               {{ row.label }}
-            {% else %}
-               {{ row.label }}
-            {% endif %}
+            {% if row.label == 'Parasitized' %}{% else %}{% endif %}
+            {{ row.label }}
           </div>
           <dl>
             <div><dt>Precision</dt><dd>{{ row.precision }}</dd></div>

@@ -6,15 +6,29 @@
   <title>Malaria Cell Detector</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+
   <!-- NAVBAR -->
   <nav class="navbar">
     <div class="navbar-container">
       <a href="{{ url_for('index') }}" class="navbar-brand">
-        <span>Malaria Detector</span>
+        <!-- Microscope SVG logo -->
+        <div class="navbar-brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 18H4a2 2 0 0 1-2-2v-1h20v1a2 2 0 0 1-2 2h-2"/>
+            <path d="M12 18v4"/>
+            <path d="M8 18l-2 4"/>
+            <path d="M16 18l2 4"/>
+            <rect x="8" y="2" width="8" height="14" rx="2"/>
+            <path d="M12 2v4"/>
+          </svg>
+        </div>
+        <span class="brand-text">
+          Malaria <span class="brand-accent">Detector</span>
+        </span>
       </a>
       <ul class="navbar-nav">
         <li><a href="{{ url_for('index') }}" class="nav-link {% if active_tab == 'home' %}active{% endif %}">Accuracy</a></li>
@@ -28,7 +42,7 @@
     <main class="page-content">
       {% block content %}{% endblock %}
     </main>
-
   </div>
+
 </body>
 </html>

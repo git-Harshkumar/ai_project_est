@@ -91,11 +91,20 @@ def parse_report(path):
 
 
 if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"Model not found at: {MODEL_PATH}")
+    print(f"[FATAL] Model not found at: {MODEL_PATH}", flush=True)
+    print(f"[FATAL] __file__   = {__file__}", flush=True)
+    print(f"[FATAL] ROOT_DIR   = {ROOT_DIR}", flush=True)
+    import sys; sys.exit(1)
 
-print(f"[INFO] Loading model from {MODEL_PATH}")
-model = tf.keras.models.load_model(MODEL_PATH)
-print("[INFO] Model ready.")
+print(f"[INFO] Loading model from {MODEL_PATH}", flush=True)
+try:
+    model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+    print("[INFO] Model loaded successfully.", flush=True)
+except Exception as e:
+    import traceback
+    print(f"[FATAL] Failed to load model: {e}", flush=True)
+    traceback.print_exc()
+    import sys; sys.exit(1)
 
 model_metrics, class_metrics = parse_report(REPORT_PATH)
 

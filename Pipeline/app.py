@@ -26,11 +26,11 @@ import tensorflow as tf
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
-ROOT_DIR   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT_DIR   = os.path.abspath(os.path.dirname(__file__))
 MODEL_NAME = "best_model.keras"
-MODEL_PATH = os.path.join(ROOT_DIR, "Dataset", "model", MODEL_NAME)
-REPORT_PATH = os.path.join(ROOT_DIR, "Dataset", "reports", "classification_report.txt")
-PLOTS_DIR  = os.path.join(ROOT_DIR, "Dataset", "plots")
+MODEL_PATH = os.path.join(ROOT_DIR, "model", MODEL_NAME)
+REPORT_PATH = os.path.join(ROOT_DIR, "reports", "classification_report.txt")
+PLOTS_DIR  = os.path.join(ROOT_DIR, "plots")
 IMG_SIZE   = (128, 128)
 CLASSES    = ["Parasitized", "Uninfected"]
 

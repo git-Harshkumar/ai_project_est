@@ -182,11 +182,20 @@ def serve_plot(filename):
 def serve_bg():
     """Serve the background image from the app root directory."""
     root = os.path.dirname(os.path.abspath(__file__))
-    # Try both names in case the user renamed the file
     for name in ("bg.png", "bg.png.png"):
         path = os.path.join(root, name)
         if os.path.exists(path):
             return send_file(path, mimetype="image/png")
+    return "Not found", 404
+
+
+@app.route("/logo.png")
+def serve_logo():
+    """Serve logo.png from the app root directory."""
+    root = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(root, "logo.png")
+    if os.path.exists(path):
+        return send_file(path, mimetype="image/png")
     return "Not found", 404
 
 

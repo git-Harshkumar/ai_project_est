@@ -9,8 +9,12 @@
 import os
 import io
 import re
+import uuid
+import shutil
+import sqlite3
 import base64
 import warnings
+from datetime import datetime
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -34,7 +38,35 @@ PLOTS_DIR   = os.path.join(ROOT_DIR, "Dataset", "plots")
 IMG_SIZE   = (128, 128)
 CLASSES    = ["Parasitized", "Uninfected"]
 
+# ─── FEEDBACK / DATABASE ─────────────────────────────────────────────────────
+APP_DIR          = os.path.dirname(os.path.abspath(__file__))
+DB_PATH          = os.path.join(APP_DIR, "feedback.db")
+FEEDBACK_IMG_DIR = os.path.join(APP_DIR, "static", "feedback_images")
+os.makedirs(FEEDBACK_IMG_DIR, exist_ok=True)
+
 app = Flask(__name__)
+
+
+def init_db():
+    """Create feedback table if it doesn't exist."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS feedback (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            image_path       TEXT    NOT NULL,
+            model_prediction TEXT    NOT NULL,
+            confidence       REAL    NOT NULL,
+            true_label       TEXT,
+            is_correct       INTEGER,
+            timestamp        TEXT    NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+init_db()
 
 
 def parse_report(path):
@@ -234,8 +266,15 @@ def result():
         return redirect(url_for("upload"))
 
     file = request.files["image"]
+
+    # --- Save image permanently for feedback / retraining ---
+    img_id       = str(uuid.uuid4())
+    img_filename = f"{img_id}.png"
+    img_save_path = os.path.join(FEEDBACK_IMG_DIR, img_filename)
+    file.seek(0)
     try:
         pil_img = Image.open(file.stream)
+        pil_img.save(img_save_path)
     except Exception:
         return render_template(
             "upload.html",
@@ -248,9 +287,21 @@ def result():
     prob = float(model.predict(img_batch, verbose=0)[0][0])
     pred_idx = int(prob >= 0.5)
     prediction = CLASSES[pred_idx]
-    confidence_value      = prob if pred_idx == 1 else 1.0 - prob
+    confidence_value        = prob if pred_idx == 1 else 1.0 - prob
     probability_parasitized = 100.0 * (1.0 - prob)
     probability_uninfected  = 100.0 * prob
+
+    # --- Log prediction to feedback DB ---
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO feedback (image_path, model_prediction, confidence, timestamp) "
+        "VALUES (?, ?, ?, ?)",
+        (img_save_path, prediction, round(confidence_value, 6), datetime.now().isoformat())
+    )
+    feedback_id = c.lastrowid
+    conn.commit()
+    conn.close()
 
     heatmap = make_gradcam(model, img_batch)
     overlay = overlay_cam(img_arr, heatmap)
@@ -273,6 +324,72 @@ def result():
         original_b64=arr_to_b64(img_arr),
         gradcam_b64=arr_to_b64(overlay),
         model_name=MODEL_NAME,
+        feedback_id=feedback_id,
+    )
+
+
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    """Receive user feedback (correct / wrong) for a prediction."""
+    feedback_id = request.form.get("feedback_id")
+    is_correct  = int(request.form.get("is_correct", 1))
+    true_label  = request.form.get("true_label") or None
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        "UPDATE feedback SET is_correct = ?, true_label = ? WHERE id = ?",
+        (is_correct, true_label, feedback_id)
+    )
+    conn.commit()
+    conn.close()
+
+    return render_template("feedback_thankyou.html", is_correct=is_correct)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADMIN ROUTES
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route("/admin/feedback")
+def admin_feedback():
+    """Admin dashboard — view all collected feedback."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT * FROM feedback ORDER BY timestamp DESC")
+    rows = c.fetchall()
+    conn.close()
+
+    total     = len(rows)
+    correct   = sum(1 for r in rows if r[5] == 1)
+    wrong     = sum(1 for r in rows if r[5] == 0)
+    pending   = sum(1 for r in rows if r[5] is None)
+    corrected = sum(1 for r in rows if r[4] is not None)
+
+    return render_template(
+        "admin_feedback.html",
+        rows=rows,
+        total=total,
+        correct=correct,
+        wrong=wrong,
+        pending=pending,
+        corrected=corrected,
+    )
+
+
+@app.route("/admin/retrain", methods=["POST"])
+def admin_retrain():
+    """Trigger model retraining via retrain.py."""
+    import subprocess
+    retrain_script = os.path.join(APP_DIR, "retrain.py")
+    result = subprocess.run(
+        ["python", retrain_script],
+        capture_output=True, text=True, cwd=APP_DIR
+    )
+    output = (result.stdout + "\n" + result.stderr).strip()
+    return render_template("admin_feedback.html",
+        retrain_output=output,
+        rows=[], total=0, correct=0, wrong=0, pending=0, corrected=0
     )
 
 

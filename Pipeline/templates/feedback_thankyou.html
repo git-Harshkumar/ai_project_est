@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="thankyou-card">
+  <div class="thankyou-icon">
+    {% if is_correct == 1 %}✅{% else %}🔁{% endif %}
+  </div>
+
+  <h2 class="thankyou-title">
+    {% if is_correct == 1 %}
+      Great — confirmed correct!
+    {% else %}
+      Thanks for the correction!
+    {% endif %}
+  </h2>
+
+  <p class="thankyou-body">
+    {% if is_correct == 1 %}
+      Your confirmation helps us track how well the model performs in the real world.
+    {% else %}
+      Your correction has been saved. It will be used the next time the model is retrained to make it smarter.
+    {% endif %}
+  </p>
+
+  <div class="thankyou-actions">
+    <a href="{{ url_for('upload') }}" class="primary-button">Analyse another image</a>
+    <a href="{{ url_for('index') }}" class="ghost-button">View accuracy</a>
+  </div>
+</div>
+
+{% endblock %}

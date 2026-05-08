@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="admin-header">
+  <div>
+    <h1 class="admin-title">Admin — Feedback Dashboard</h1>
+    <p class="admin-subtitle">Review user-submitted prediction feedback and trigger retraining.</p>
+  </div>
+  <form action="/admin/retrain" method="POST" onsubmit="return confirmRetrain()">
+    <button type="submit" class="btn-retrain">🔁 Retrain Model Now</button>
+  </form>
+</div>
+
+<!-- RETRAIN OUTPUT -->
+{% if retrain_output %}
+<div class="retrain-output-box">
+  <h3>🖥 Retraining Output</h3>
+  <pre>{{ retrain_output }}</pre>
+</div>
+{% endif %}
+
+<!-- STAT CARDS -->
+<div class="admin-stats">
+  <div class="admin-stat-card">
+    <span>Total Predictions</span>
+    <strong>{{ total }}</strong>
+  </div>
+  <div class="admin-stat-card correct">
+    <span>✅ Confirmed Correct</span>
+    <strong>{{ correct }}</strong>
+  </div>
+  <div class="admin-stat-card wrong">
+    <span>❌ Marked Wrong</span>
+    <strong>{{ wrong }}</strong>
+  </div>
+  <div class="admin-stat-card pending">
+    <span>⏳ No Feedback Yet</span>
+    <strong>{{ pending }}</strong>
+  </div>
+  <div class="admin-stat-card corrected">
+    <span>🔁 With True Label</span>
+    <strong>{{ corrected }}</strong>
+  </div>
+</div>
+
+<!-- FEEDBACK TABLE -->
+{% if rows %}
+<div class="admin-table-wrap">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Timestamp</th>
+        <th>Prediction</th>
+        <th>Confidence</th>
+        <th>Correct?</th>
+        <th>True Label</th>
+        <th>Image</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="{% if r[5] == 1 %}row-correct{% elif r[5] == 0 %}row-wrong{% else %}row-pending{% endif %}">
+        <td>{{ r[0] }}</td>
+        <td class="td-timestamp">{{ r[6][:19].replace('T', ' ') }}</td>
+        <td>
+          <span class="pred-badge {{ r[2]|lower }}">{{ r[2] }}</span>
+        </td>
+        <td>{{ "%.1f"|format(r[3] * 100) }}%</td>
+        <td class="td-verdict">
+          {% if r[5] == 1 %}✅{% elif r[5] == 0 %}❌{% else %}<span class="badge-pending">—</span>{% endif %}
+        </td>
+        <td>{{ r[4] if r[4] else '—' }}</td>
+        <td>
+          <a href="/{{ r[1].replace('\\', '/') }}" target="_blank" class="img-link">View</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  {% if not retrain_output %}
+  <div class="empty-state">
+    <p>📭 No feedback collected yet. Upload and analyse some images to get started.</p>
+  </div>
+  {% endif %}
+{% endif %}
+
+<script>
+  function confirmRetrain() {
+    return confirm('This will run retrain.py on all corrected feedback images. Continue?');
+  }
+</script>
+
+{% endblock %}
